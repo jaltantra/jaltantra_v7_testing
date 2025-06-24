@@ -34,11 +34,10 @@ OWASP ZAP is an intercepting proxy for manual and automated security testing.
 
    1. Launch ZAP
    2. Select **Automate** → **Ajax Spider**
-   3. Enter your target URL (e.g. `http://localhost:8090/jaltantra_loop_dev_v7`)
+   3. Enter your target URL 
    4. Start Ajax Spider to crawl, then switch to **Attack mode** → **Active Scan** → **Start**
    5. Review alerts in the “Alerts” tab
 
-> **Tip:** You can also write ZAP scripts for headless CI/CD scans—see the ZAP docs for “Docker” or “CI integration.”
 
 ---
 
