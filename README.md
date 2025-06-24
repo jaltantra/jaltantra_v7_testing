@@ -3,115 +3,185 @@ Please ensure you are connected to IIT-B network and have access to license serv
 -bash inital_setup.sh  
 -bash run.sh
 
+# Testing Environment Setup
 
-# Project Deployment and Monitoring Guide
+This document explains how to install and run the different testing tools we use for the Jaltantra application.
 
+---
 
-## Configuration Files
+## Prerequisites
 
-There are two configuration files you need to fill out: `deploy_config.json` and `monitor_config.json`.
+* **Operating System**: Ubuntu (or any Debian-based Linux)
+* **Privileges**: sudo access
+* **Other tools**:
 
-### deploy_config.json
+  * Java 11+ and Maven
+  * Python 3.x
+  * Git
+  * (Optional) A modern web browser for accessing UIs
 
-This configuration file contains parameters required for deploying your application.
+---
 
-#### Parameters
+## 1. OWASP ZAP
 
-- **host_name**: The name of the host to which the deployment will be made.
-  - **Example**: `"deploy"`
+OWASP ZAP is an intercepting proxy for manual and automated security testing.
 
-- **remote_ip**: The IP address of the remote server where the deployment will occur.
-  - **Example**: `"10.192.6.131"`
+1. **Download & install**
+   Visit: [https://www.zaproxy.org/download/](https://www.zaproxy.org/download/)
+   Follow the platform-specific installer instructions.
 
-- **remote_folder**: The directory path on the remote server where the Python scripts will be stored.
-  - **Example**: `"/home/deploy/Jaltantra_v2_3_0_0"`
+2. **Quickstart automated scan**
 
-#### Example Configuration
+   1. Launch ZAP
+   2. Select **Automate** → **Ajax Spider**
+   3. Enter your target URL (e.g. `http://localhost:8090/jaltantra_loop_dev_v7`)
+   4. Start Ajax Spider to crawl, then switch to **Attack mode** → **Active Scan** → **Start**
+   5. Review alerts in the “Alerts” tab
 
-```json
-{
-  "host_name": "deploy",
-  "remote_ip": "10.192.6.131",
-  "remote_folder": "/home/deploy/Jaltantra_v2_3_0_0"
-}
+> **Tip:** You can also write ZAP scripts for headless CI/CD scans—see the ZAP docs for “Docker” or “CI integration.”
+
+---
+
+## 2. k6 (Load Testing)
+
+k6 is a modern, scriptable load-testing tool.
+
+1. **Install**
+
+   ```bash
+   sudo gpg -k
+   sudo gpg --no-default-keyring \
+     --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+     --keyserver hkp://keyserver.ubuntu.com:80 \
+     --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+
+   echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+     https://dl.k6.io/deb stable main" | \
+     sudo tee /etc/apt/sources.list.d/k6.list
+
+   sudo apt-get update
+   sudo apt-get install k6
+   ```
+
+2. **Run your test script**
+
+   ```bash
+   k6 run your_test_script.js
+   ```
+
+   * Replace `your_test_script.js` with your k6 scenario file.
+   * Check the console output for request metrics and thresholds.
+
+---
+
+## 3. SQLmap (SQL Injection Testing)
+
+SQLmap automates testing for SQL injection vulnerabilities.
+
+1. **Clone the repo**
+
+   ```bash
+   git clone https://github.com/sqlmapproject/sqlmap.git
+   cd sqlmap
+   ```
+
+2. **Run against your login endpoint**
+
+   ```bash
+   python3 sqlmap.py \
+     -u "http://localhost:8090/jaltantra_loop_dev_v7/login?Email=you@example.com&Password=1234" \
+     --level=5 --risk=3 \
+     --tamper=space2comment \
+     --batch
+   ```
+
+   * Adjust `--level` (1–5) and `--risk` (1–3) to control testing intensity.
+   * `--tamper` scripts can help bypass simple filters.
+
+---
+
+## 4. Prometheus (Metrics Collection)
+
+Prometheus scrapes your app’s metrics endpoint.
+
+1. **Download**
+   [https://prometheus.io/download/](https://prometheus.io/download/)
+
+2. **Run**
+   Open two terminals:
+
+   * In Tab 1:
+
+     ```bash
+     ./run.sh
+     ```
+   * In Tab 2:
+
+     ```bash
+     ./prometheus --config.file=prometheus.yml
+     ```
+
+3. **Verify**
+
+   * Metrics endpoint in your app:
+
+     ```
+     http://localhost:8090/jaltantra_loop_dev_v7/actuator/prometheus
+     ```
+   * Prometheus UI:
+
+     ```
+     http://localhost:9090/targets
+     ```
+   * You should see your “jaltantra” job and its scrape status.
+
+---
+
+## 5. Grafana (Visualization)
+
+Grafana visualizes Prometheus metrics (or other data sources).
+
+1. **Download & install**
+   [https://grafana.com/grafana/download](https://grafana.com/grafana/download)
+
+2. **Run**
+
+   ```bash
+   sudo systemctl start grafana-server
+   ```
+
+3. **Login & configure**
+
+   * Open: `http://localhost:3000/login`
+   * Default credentials:
+
+     ```
+     admin / admin
+     ```
+   * Add Prometheus as a data source (URL: `http://localhost:9090`)
+   * Import or build a dashboard (e.g., JVM Micrometer metrics)
+
+---
+
+## 6. Running Tests in Maven
+
+Your unit, integration, and end-to-end tests are managed via Maven:
+
+```bash
+mvn clean test
 ```
 
-# Monitoring Configuration Guide
+* **Unit tests**: placed under `src/test/java`
+* **Integration/E2E tests**: you can tag or profile-separate them; see `pom.xml` for `<profiles>`
 
-This section details the configuration parameters for setting up monitoring of your application using `monitor_config.json`.
+---
+## 7. Continuous Integration
+For changing in CI phase, you have to change `ci.yaml` part
+## Additional Tips
 
-## Configuration Parameters
+* **Environment variables**: you may want to set `JAVA_HOME`, `MAVEN_HOME`, etc., in your shell.
+* **Ports**: make sure no other service is listening on 8090, 9090, or 3000.
 
-### host_ip
-
-- **Description**: The IP address of the host server where your application is deployed.
-- **Example**: `"localhost"`
-
-### host_port
-
-- **Description**: The port number on which the host server listens for incoming requests.
-- **Example**: `"8099"`
-
-### application_context
-
-- **Description**: The context path of your application.
-- **Example**: `"jaltantra_loop_dev_v7"`
-
-### solver_directory
-
-- **Description**: The directory path on the remote server where the Python scripts are stored.
-- **Example**: `"/home/hkshenoy/Desktop/Jaltantra_loop/JalTantra-Code-and-Scripts/NetworkResults/"`
-
-### license_directory
-- **Description**: The directory path on the remote server which contains the AMPL license.
-- **Example**: `"/home/deploy/Jaltantra_v2_3_0_0/JalTantra-Code-and-Scripts/ampl.linux-intel64"`
-
-### sender_email
-
-- **Description**: The email address used for sending notifications.
-- **Example**: `"24m709@iitb.ac.in"`
-
-### sender_token
-
-- **Description**: The authentication token for the sender's email account.
-- **Example**: `"6a853780b90d30aac01a7dummy6d58b36a06"`
-
-### receiver_email_list
-
-- **Description**: A list of email addresses that will receive monitoring notifications.
-- **Example**: `["22m0759@iitb.ac.in", "22m0796@iitb.ac.in"]`
-
-## Example Configuration
-
-Here is an example `monitor_config.json` file with sample values filled in:
-
-```json
-{
-  "host_ip": "localhost",
-  "host_port": "8099",
-  "application_context": "jaltantra_loop_dev_v7",
-  "solver_directory": "/home/hkshenoy/Desktop/Jaltantra_loop/JalTantra-Code-and-Scripts/NetworkResults/",
-  "license_directory":"/home/deploy/Jaltantra_v2_3_0_0/JalTantra-Code-and-Scripts/ampl.linux-intel64",
-  "sender_email": "24m709@iitb.ac.in",
-  "sender_token": "6a853780b90d30aac01a7dummy6d58b36a06",
-  "receiver_email_list": ["22m0759@iitb.ac.in", "22m0796@iitb.ac.in"]
-}
-```
+---
 
 
-After configuring `monitor_config.json` with the appropriate values, execute the monitoring script using the following command:
-
-```sh
-bash monitor_app.sh monitor_config.json
-```
-
-# Documentation
-- Refer Documentation.zip for Java class documentation
-
-# Google MAP API KEY
-- In the file src/main/resources/static/system.html please add your google map api key at line 51:
-- <script type="text/javascript" src="//maps.google.com/maps/api/js?key=Add_KEY_HERE&libraries=geometry,places"></script>
-- Please keep the API key secret and dont expose it to public/external users.
-
-# Properties file
--Refer application-dev.properties and application-deploy.properties file fin src/main/resources folder for making changes to configurations
