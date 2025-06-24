@@ -154,11 +154,40 @@
     </dependencies>
 <build>
   <plugins>
-    <!-- Spring Boot Maven Plugin -->
+    <!-- Uncomment here to execute end to end testing. Commented this part to execute unit and integration testing   
     <plugin>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-maven-plugin</artifactId>
     </plugin>
+    <plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-surefire-plugin</artifactId>
+  <version>3.1.2</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.maven.surefire</groupId>
+      <artifactId>surefire-testng</artifactId>
+      <version>3.1.2</version>
+    </dependency>
+  </dependencies>
+  <configuration>
+    <suiteXmlFiles>
+      <suiteXmlFile>testng.xml</suiteXmlFile>
+    </suiteXmlFiles>
+    <includes>
+      <include>**/*Test.java</include>
+    </includes>
+    <useSystemClassLoader>true</useSystemClassLoader>
+    <testFailureIgnore>false</testFailureIgnore>
+    <properties>
+      <property>
+        <name>listener</name>
+        <value>org.testng.reporters.EmailableReporter</value>
+      </property>
+    </properties>
+  </configuration>
+</plugin>
+-->
 
 
     <!-- JaCoCo Plugin for Code Coverage -->
